@@ -53,14 +53,8 @@ jobs:
         run: |
           git merge upstream/main --no-edit
       
-      - name: Push changes
+      - name: Push changes and trigger build
         if: steps.check.outputs.has_updates == 'true'
         run: |
           git push origin main
-      
-      - name: Trigger Docker build
-        if: steps.check.outputs.has_updates == 'true'
-        run: |
-          gh workflow run docker-build.yml --ref main
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "Changes pushed - Docker build will trigger automatically"
