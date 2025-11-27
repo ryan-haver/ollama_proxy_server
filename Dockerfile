@@ -44,4 +44,4 @@ EXPOSE 8080
 
 # Command to run the application directly with Python
 # The app now uses uvicorn programmatically, not gunicorn
-CMD ["python", "app/main.py"]
+CMD ["python", "-m", "app.main"]
