@@ -42,6 +42,6 @@ USER app
 # Expose the port the app runs on
 EXPOSE 8080
 
-# Command to run the application using our custom Gunicorn config file.
-# This ensures structured JSON logging is used in production.
-CMD ["gunicorn", "-c", "./gunicorn_conf.py", "app.main:app"]
+# Command to run the application directly with Python
+# The app now uses uvicorn programmatically, not gunicorn
+CMD ["python", "app/main.py"]
