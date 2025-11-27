@@ -21,15 +21,18 @@ COPY pyproject.toml ./
 RUN poetry config virtualenvs.create false && \
     poetry install --without dev --no-root --no-interaction --no-ansi
 
-# Set a non-root user
-RUN addgroup --system app && adduser --system --group app
-USER app
-
-# Set working directory
+# Set working directory for app
 WORKDIR /home/app
 
+# Copy application files
 COPY ./app ./app
 COPY gunicorn_conf.py .
+
+# Set a non-root user and fix permissions
+RUN addgroup --system app && adduser --system --group app && \
+    chown -R app:app /home/app
+
+USER app
 
 # Expose the port the app runs on
 EXPOSE 8080
