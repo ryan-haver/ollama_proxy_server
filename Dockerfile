@@ -29,7 +29,7 @@ ARG PGID=1000
 RUN addgroup --gid ${PGID} --system app && \
     adduser --uid ${PUID} --system --group app
 
-# Set working directory for app
+# Set working directory for app - this becomes the project root
 WORKDIR /home/app
 
 # Copy application files (as root, before switching user)
@@ -39,9 +39,12 @@ COPY --chown=app:app gunicorn_conf.py .
 # Switch to non-root user
 USER app
 
+# Set PYTHONPATH to current directory so app module can be found
+ENV PYTHONPATH=/home/app
+
 # Expose the port the app runs on
 EXPOSE 8080
 
 # Command to run the application directly with Python
-# The app now uses uvicorn programmatically, not gunicorn
-CMD ["python", "-m", "app.main"]
+# Run as a script, not as a module, matching upstream's python app/main.py
+CMD ["python", "app/main.py"]
