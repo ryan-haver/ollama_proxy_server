@@ -21,22 +21,22 @@ COPY pyproject.toml ./
 RUN poetry config virtualenvs.create false && \
     poetry install --without dev --no-root --no-interaction --no-ansi
 
-# Set working directory for app
-WORKDIR /home/app
-
-# Copy application files
-COPY ./app ./app
-COPY gunicorn_conf.py .
-
 # Allow PUID/PGID to be passed as build args (for Unraid compatibility)
 ARG PUID=1000
 ARG PGID=1000
 
-# Set a non-root user and fix permissions
+# Create user and group first
 RUN addgroup --gid ${PGID} --system app && \
-    adduser --uid ${PUID} --system --group app && \
-    chown -R app:app /home/app
+    adduser --uid ${PUID} --system --group app
 
+# Set working directory for app
+WORKDIR /home/app
+
+# Copy application files (as root, before switching user)
+COPY --chown=app:app ./app ./app
+COPY --chown=app:app gunicorn_conf.py .
+
+# Switch to non-root user
 USER app
 
 # Expose the port the app runs on
