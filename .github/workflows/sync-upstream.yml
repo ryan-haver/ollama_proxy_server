@@ -1,0 +1,66 @@
+name: Sync Fork with Upstream
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC to check for upstream updates
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual triggering
+  
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/ParisNeo/ollama_proxy_server.git
+          git fetch upstream
+      
+      - name: Check for updates
+        id: check
+        run: |
+          # Get the latest commit from upstream main
+          UPSTREAM_COMMIT=$(git rev-parse upstream/main)
+          CURRENT_COMMIT=$(git rev-parse origin/main)
+          
+          echo "upstream_commit=$UPSTREAM_COMMIT" >> $GITHUB_OUTPUT
+          echo "current_commit=$CURRENT_COMMIT" >> $GITHUB_OUTPUT
+          
+          if [ "$UPSTREAM_COMMIT" != "$CURRENT_COMMIT" ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "✅ Updates detected from upstream"
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "✨ Fork is up to date"
+          fi
+      
+      - name: Merge upstream changes
+        if: steps.check.outputs.has_updates == 'true'
+        run: |
+          git merge upstream/main --no-edit
+      
+      - name: Push changes
+        if: steps.check.outputs.has_updates == 'true'
+        run: |
+          git push origin main
+      
+      - name: Trigger Docker build
+        if: steps.check.outputs.has_updates == 'true'
+        run: |
+          gh workflow run docker-build.yml --ref main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
