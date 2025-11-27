@@ -28,8 +28,13 @@ WORKDIR /home/app
 COPY ./app ./app
 COPY gunicorn_conf.py .
 
+# Allow PUID/PGID to be passed as build args (for Unraid compatibility)
+ARG PUID=1000
+ARG PGID=1000
+
 # Set a non-root user and fix permissions
-RUN addgroup --system app && adduser --system --group app && \
+RUN addgroup --gid ${PGID} --system app && \
+    adduser --uid ${PUID} --system --group app && \
     chown -R app:app /home/app
 
 USER app

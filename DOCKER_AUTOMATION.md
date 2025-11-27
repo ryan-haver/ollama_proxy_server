@@ -29,6 +29,54 @@ This repository is configured to automatically build and publish Docker images t
 docker pull ghcr.io/ryan-haver/ollama_proxy_server:latest
 ```
 
+### Environment Variables
+
+#### **Required (Change These!)**
+- `ADMIN_PASSWORD` - Admin password (default: `changeme` - **CHANGE THIS!**)
+- `SECRET_KEY` - Session encryption key (default provided - **CHANGE THIS for production!**)
+
+#### **Optional (with sensible defaults)**
+- `DATABASE_URL` - Database connection (default: `sqlite+aiosqlite:///./ollama_proxy.db`)
+- `ADMIN_USER` - Admin username (default: `admin`)
+- `PROXY_PORT` - Server port (default: `8080`)
+- `LOG_LEVEL` - Logging verbosity (default: `info`, options: `debug`, `info`, `warning`, `error`, `critical`)
+
+### Quick Start (Minimal)
+```bash
+docker run -d \
+  -p 8080:8080 \
+  -e ADMIN_PASSWORD="your-secure-password" \
+  -e SECRET_KEY="$(openssl rand -hex 32)" \
+  -v ollama_proxy_data:/home/app \
+  ghcr.io/ryan-haver/ollama_proxy_server:latest
+```
+
+### Production Setup (Recommended)
+```bash
+docker run -d \
+  --name ollama-proxy \
+  -p 8080:8080 \
+  -e ADMIN_USER="admin" \
+  -e ADMIN_PASSWORD="your-secure-password" \
+  -e SECRET_KEY="your-generated-secret-key" \
+  -e LOG_LEVEL="info" \
+  -v ollama_proxy_data:/home/app \
+  --restart unless-stopped \
+  ghcr.io/ryan-haver/ollama_proxy_server:latest
+```
+
+### With Custom Database (PostgreSQL)
+```bash
+docker run -d \
+  --name ollama-proxy \
+  -p 8080:8080 \
+  -e DATABASE_URL="postgresql+asyncpg://user:password@postgres:5432/ollama_proxy" \
+  -e ADMIN_PASSWORD="your-secure-password" \
+  -e SECRET_KEY="your-generated-secret-key" \
+  --restart unless-stopped \
+  ghcr.io/ryan-haver/ollama_proxy_server:latest
+```
+
 ### Run the Container
 ```bash
 docker run -d \
@@ -48,10 +96,74 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=yourpassword
+      - ADMIN_USER=admin
+      - ADMIN_PASSWORD=your-secure-password
+      - SECRET_KEY=your-generated-secret-key
+      - LOG_LEVEL=info
+      - DATABASE_URL=sqlite+aiosqlite:///./ollama_proxy.db
+    volumes:
+      - ollama_proxy_data:/home/app  # Container working directory where database is stored
     restart: unless-stopped
+
+volumes:
+  ollama_proxy_data:
 ```
+
+### Unraid Deployment
+
+For Unraid, specify PUID/PGID to match your user permissions:
+
+```bash
+docker run -d \
+  --name ollama-proxy \
+  -p 8080:8080 \
+  -e PUID=99 \
+  -e PGID=100 \
+  -e ADMIN_PASSWORD="your-secure-password" \
+  -e SECRET_KEY="your-generated-secret-key" \
+  -v /mnt/user/appdata/ollama-proxy:/home/app \
+  --restart unless-stopped \
+  ghcr.io/ryan-haver/ollama_proxy_server:latest
+```
+
+**Unraid Default Values:**
+- PUID: `99` (nobody user)
+- PGID: `100` (users group)
+
+**Finding Your PUID/PGID:**
+```bash
+# SSH into Unraid and run:
+id <username>
+```
+
+## 🔐 Security Best Practices
+
+### Generate a Secure SECRET_KEY
+```bash
+# Using Python
+python -c "import secrets; print(secrets.token_hex(32))"
+
+# Using OpenSSL
+openssl rand -hex 32
+
+# Using PowerShell
+-join ((48..57) + (65..70) | Get-Random -Count 64 | ForEach-Object {[char]$_})
+```
+
+### Use Strong ADMIN_PASSWORD
+
+- At least 12 characters
+- Mix of uppercase, lowercase, numbers, and symbols
+- Never use default passwords in production
+
+### Data Persistence
+
+- **SQLite (default)**: Mount `/home/app` volume to persist the database
+  - Container working directory: `/home/app`
+  - Database file location: `/home/app/ollama_proxy.db`
+  - Example: `-v ollama_proxy_data:/home/app`
+- **PostgreSQL (recommended for production)**: Use external database with `DATABASE_URL`
+- Always use named volumes or bind mounts for data persistence
 
 ## ⚙️ Configuration
 
