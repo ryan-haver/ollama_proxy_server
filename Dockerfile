@@ -1,10 +1,10 @@
-# --- Build and Runtime Stage ---
-FROM python:3.13-slim
+# --- Build Stage ---
+FROM python:3.13-slim AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Install build dependencies needed for psutil and other packages
+# Install build dependencies for ARM64 compatibility (psutil compilation)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
@@ -25,16 +25,20 @@ RUN poetry config virtualenvs.create false && \
 ARG PUID=1000
 ARG PGID=1000
 
-# Create user and group first
+# Set a non-root user with configurable UID/GID
 RUN addgroup --gid ${PGID} --system app && \
     adduser --uid ${PUID} --system --group app
 
-# Set working directory for app
+# Set working directory
 WORKDIR /home/app
 
-# Copy application files (as root, before switching user)
-COPY --chown=app:app ./app ./app
-COPY --chown=app:app gunicorn_conf.py .
+# Copy application files
+COPY ./app ./app
+COPY gunicorn_conf.py .
+
+# Create runtime directories (app needs to create .ssl, uploads, benchmarks at startup)
+RUN mkdir -p .ssl benchmarks app/static/uploads && \
+    chown -R app:app /home/app
 
 # Switch to non-root user
 USER app
@@ -42,6 +46,6 @@ USER app
 # Expose the port the app runs on
 EXPOSE 8080
 
-# Command to run the application using gunicorn (production-ready)
-# This matches upstream's deployment method and ensures structured JSON logging
+# Command to run the application using our custom Gunicorn config file.
+# This ensures structured JSON logging is used in production.
 CMD ["gunicorn", "-c", "./gunicorn_conf.py", "app.main:app"]
