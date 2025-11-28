@@ -8,7 +8,7 @@ from app.core.config import settings
 
 # Gunicorn config variables
 loglevel = os.environ.get("LOG_LEVEL", "info")
-workers = int(os.environ.get("GUNICORN_WORKERS", "4"))
+workers = int(os.environ.get("GUNICORN_WORKERS", "1"))  # Default to 1 to avoid SQLite race conditions
 bind = os.environ.get("GUNICORN_BIND", "0.0.0.0:8080")
 worker_class = os.environ.get("GUNICORN_WORKER_CLASS", "uvicorn.workers.UvicornWorker")
 preload_app = True  # Load app before forking workers - prevents SQLite race conditions
