@@ -34,8 +34,9 @@ ARG PUID=99
 ARG PGID=100
 
 # Create user and group with configurable UID/GID
-RUN addgroup --gid ${PGID} --system app && \
-    adduser --uid ${PUID} --system --group app
+# Use || true to handle cases where the GID/UID already exist
+RUN groupadd -g ${PGID} app 2>/dev/null || groupmod -n app $(getent group ${PGID} | cut -d: -f1) && \
+    useradd -u ${PUID} -g ${PGID} -m -s /bin/bash app 2>/dev/null || usermod -l app -d /home/app $(getent passwd ${PUID} | cut -d: -f1)
 
 # Create runtime directories and set ownership
 RUN mkdir -p .ssl benchmarks app/static/uploads data && \
