@@ -1,10 +1,13 @@
 # Automated Docker Build & Deploy Setup
 
+<!-- markdownlint-configure-file {"MD013": false} -->
+
 This repository is configured to automatically build and publish Docker images to GitHub Container Registry (GHCR) whenever the upstream repository (`ParisNeo/ollama_proxy_server`) is updated.
 
 ## 🔄 How It Works
 
 ### 1. **Upstream Sync Workflow** (`.github/workflows/sync-upstream.yml`)
+
 - **Trigger**: Runs daily at 2 AM UTC (configurable via cron schedule)
 - **Manual Trigger**: Can be triggered manually from the Actions tab
 - **Process**:
@@ -13,6 +16,7 @@ This repository is configured to automatically build and publish Docker images t
   3. Triggers the Docker build workflow automatically
 
 ### 2. **Docker Build & Push Workflow** (`.github/workflows/docker-build-push.yml`)
+
 - **Triggers**:
   - Automatically when upstream sync detects changes
   - When code changes are pushed to `main` branch
@@ -25,6 +29,7 @@ This repository is configured to automatically build and publish Docker images t
 ## 📦 Using the Docker Image
 
 ### Pull the Image
+
 ```bash
 docker pull ghcr.io/ryan-haver/ollama_proxy_server:latest
 ```
@@ -32,26 +37,30 @@ docker pull ghcr.io/ryan-haver/ollama_proxy_server:latest
 ### Environment Variables
 
 #### **Required (Change These!)**
+
 - `ADMIN_PASSWORD` - Admin password (default: `changeme` - **CHANGE THIS!**)
 - `SECRET_KEY` - Session encryption key (default provided - **CHANGE THIS for production!**)
 
 #### **Optional (with sensible defaults)**
-- `DATABASE_URL` - Database connection (default: `sqlite+aiosqlite:///./ollama_proxy.db`)
+
+- `DATABASE_URL` - Database connection (default: `sqlite+aiosqlite:////home/app/data/ollama_proxy.db`)
 - `ADMIN_USER` - Admin username (default: `admin`)
 - `PROXY_PORT` - Server port (default: `8080`)
 - `LOG_LEVEL` - Logging verbosity (default: `info`, options: `debug`, `info`, `warning`, `error`, `critical`)
 
 ### Quick Start (Minimal)
+
 ```bash
 docker run -d \
   -p 8080:8080 \
   -e ADMIN_PASSWORD="your-secure-password" \
   -e SECRET_KEY="$(openssl rand -hex 32)" \
-  -v ollama_proxy_data:/home/app \
+  -v ollama_proxy_data:/home/app/data \
   ghcr.io/ryan-haver/ollama_proxy_server:latest
 ```
 
 ### Production Setup (Recommended)
+
 ```bash
 docker run -d \
   --name ollama-proxy \
@@ -60,12 +69,16 @@ docker run -d \
   -e ADMIN_PASSWORD="your-secure-password" \
   -e SECRET_KEY="your-generated-secret-key" \
   -e LOG_LEVEL="info" \
-  -v ollama_proxy_data:/home/app \
+  -v ollama_proxy_data:/home/app/data \
+  -v /path/to/.ssl:/home/app/.ssl \
+  -v /path/to/uploads:/home/app/app/static/uploads \
+  -v /path/to/benchmarks:/home/app/benchmarks \
   --restart unless-stopped \
   ghcr.io/ryan-haver/ollama_proxy_server:latest
 ```
 
 ### With Custom Database (PostgreSQL)
+
 ```bash
 docker run -d \
   --name ollama-proxy \
@@ -78,6 +91,7 @@ docker run -d \
 ```
 
 ### Run the Container
+
 ```bash
 docker run -d \
   --name ollama-proxy \
@@ -88,8 +102,9 @@ docker run -d \
 ```
 
 ### With Docker Compose
+
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   ollama-proxy:
     image: ghcr.io/ryan-haver/ollama_proxy_server:latest
@@ -100,107 +115,42 @@ services:
       - ADMIN_PASSWORD=your-secure-password
       - SECRET_KEY=your-generated-secret-key
       - LOG_LEVEL=info
-      - DATABASE_URL=sqlite+aiosqlite:///./ollama_proxy.db
+      - DATABASE_URL=sqlite+aiosqlite:////home/app/data/ollama_proxy.db
     volumes:
-      - ollama_proxy_data:/home/app  # Container working directory where database is stored
+      - ollama_proxy_data:/home/app/data
+      - ollama_proxy_ssl:/home/app/.ssl
+      - ollama_proxy_uploads:/home/app/app/static/uploads
+      - ollama_proxy_benchmarks:/home/app/benchmarks
     restart: unless-stopped
 
 volumes:
   ollama_proxy_data:
+  ollama_proxy_ssl:
+  ollama_proxy_uploads:
+  ollama_proxy_benchmarks:
 ```
 
 ### Unraid Deployment
 
-For Unraid, specify PUID/PGID to match your user permissions:
+The container already runs as UID 99 / GID 100, so no extra environment variables are required. Mount the following paths to persist data:
 
-```bash
-docker run -d \
-  --name ollama-proxy \
-  -p 8080:8080 \
-  -e PUID=99 \
-  -e PGID=100 \
-  -e ADMIN_PASSWORD="your-secure-password" \
-  -e SECRET_KEY="your-generated-secret-key" \
-  -v /mnt/user/appdata/ollama-proxy:/home/app \
-  --restart unless-stopped \
-  ghcr.io/ryan-haver/ollama_proxy_server:latest
-```
+| Container Path                 | Purpose                                | Suggested Host Path                                |
+| ------------------------------ | -------------------------------------- | -------------------------------------------------- |
+| `/home/app/data`               | SQLite database and other runtime data | `/mnt/user/appdata/ollama-proxy-server/data`       |
+| `/home/app/.ssl`               | HTTPS certificates                     | `/mnt/user/appdata/ollama-proxy-server/.ssl`       |
+| `/home/app/app/static/uploads` | Uploaded files                         | `/mnt/user/appdata/ollama-proxy-server/uploads`    |
+| `/home/app/benchmarks`         | Benchmark assets                       | `/mnt/user/appdata/ollama-proxy-server/benchmarks` |
 
-**Unraid Default Values:**
-- PUID: `99` (nobody user)
-- PGID: `100` (users group)
-
-**Finding Your PUID/PGID:**
-```bash
-# SSH into Unraid and run:
-id <username>
-```
-
-#### Complete Unraid Environment Variables
-
-**Required (Must Change):**
-- `PUID` - User ID (default: `99` for nobody)
-- `PGID` - Group ID (default: `100` for users)
-- `ADMIN_PASSWORD` - Admin login password (**change from default!**)
-- `SECRET_KEY` - Session encryption key (generate with `openssl rand -hex 32`)
-
-**Optional (Have Defaults):**
-- `ADMIN_USER` - Admin username (default: `admin`)
-- `PROXY_PORT` - Internal container port (default: `8080`)
-- `LOG_LEVEL` - Logging level (default: `info`, options: `debug`, `info`, `warning`, `error`, `critical`)
-- `DATABASE_URL` - Database connection (default: `sqlite+aiosqlite:///./ollama_proxy.db`)
-
-#### Unraid Template Example
-
-**Minimal Configuration (Recommended):**
-```
-Name: ollama-proxy
-Repository: ghcr.io/ryan-haver/ollama_proxy_server:latest
-Network Type: Bridge
-
-Port Mappings:
-  Container Port: 8080 -> Host Port: 8080
-
-Path Mappings:
-  Container Path: /home/app -> Host Path: /mnt/user/appdata/ollama-proxy
-
-Environment Variables:
-  PUID=99
-  PGID=100
-  ADMIN_PASSWORD=your-secure-password
-  SECRET_KEY=your-generated-secret-key
-```
-
-**Full Configuration (All Options):**
-```
-Name: ollama-proxy
-Repository: ghcr.io/ryan-haver/ollama_proxy_server:latest
-Network Type: Bridge
-
-Port Mappings:
-  Container Port: 8080 -> Host Port: 8080
-
-Path Mappings:
-  Container Path: /home/app -> Host Path: /mnt/user/appdata/ollama-proxy
-
-Environment Variables:
-  PUID=99
-  PGID=100
-  ADMIN_USER=admin
-  ADMIN_PASSWORD=your-secure-password
-  SECRET_KEY=your-generated-secret-key
-  PROXY_PORT=8080
-  LOG_LEVEL=info
-  DATABASE_URL=sqlite+aiosqlite:///./ollama_proxy.db
-```
+Your Unraid template should therefore define four path mappings (data + three optional directories) plus the port mapping for `8080`.
 
 #### Database Configuration
 
 **SQLite (Default - No External Database Needed):**
 
-The application uses SQLite by default, which stores everything in a single file at `/home/app/ollama_proxy.db`. This is perfect for most use cases and requires no additional setup.
+The application uses SQLite by default, which stores everything in a single file at `/home/app/data/ollama_proxy.db`. This is perfect for most use cases and requires no additional setup.
 
 ✅ **Use SQLite When:**
+
 - Single server deployment
 - Small to medium workload
 - Simple setup preferred
@@ -217,6 +167,7 @@ DATABASE_URL=postgresql+asyncpg://user:password@postgres-host:5432/ollama_proxy
 ```
 
 ⚠️ **Use PostgreSQL When:**
+
 - High concurrent users (50+)
 - Production multi-server setup
 - Very high traffic
@@ -227,6 +178,7 @@ DATABASE_URL=postgresql+asyncpg://user:password@postgres-host:5432/ollama_proxy
 ## 🔐 Security Best Practices
 
 ### Generate a Secure SECRET_KEY
+
 ```bash
 # Using Python
 python -c "import secrets; print(secrets.token_hex(32))"
@@ -246,37 +198,43 @@ openssl rand -hex 32
 
 ### Data Persistence
 
-- **SQLite (default)**: Mount `/home/app` volume to persist the database
+- **SQLite (default)**: Mount `/home/app/data` to persist the database
   - Container working directory: `/home/app`
-  - Database file location: `/home/app/ollama_proxy.db`
-  - Example: `-v ollama_proxy_data:/home/app`
+  - Database file location: `/home/app/data/ollama_proxy.db`
+  - Example: `-v ollama_proxy_data:/home/app/data`
 - **PostgreSQL (recommended for production)**: Use external database with `DATABASE_URL`
 - Always use named volumes or bind mounts for data persistence
 
 ## ⚙️ Configuration
 
 ### Required Permissions
+
 The workflows require the following permissions (already configured):
+
 - **Contents**: write (for syncing upstream changes)
 - **Packages**: write (for pushing to GHCR)
 
 These permissions are automatically granted via `GITHUB_TOKEN` - no additional secrets needed!
 
 ### Customizing Sync Schedule
+
 Edit `.github/workflows/sync-upstream.yml` and modify the cron schedule:
+
 ```yaml
 schedule:
-  - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  - cron: "0 2 * * *" # Daily at 2 AM UTC
 ```
 
 ## 🚀 Manual Triggers
 
 ### Sync Fork Manually
+
 1. Go to **Actions** tab
 2. Select **Sync Fork with Upstream**
 3. Click **Run workflow**
 
 ### Build Docker Image Manually
+
 1. Go to **Actions** tab
 2. Select **Build and Push Docker Image**
 3. Click **Run workflow**
@@ -292,25 +250,29 @@ schedule:
 ## 🔍 Troubleshooting
 
 ### Workflow Fails
+
 - Check the Actions logs for detailed error messages
 - Verify repository permissions are enabled (Settings → Actions → General)
 
 ### Can't Pull Image
+
 - Ensure the package is public: Repository → Packages → Package Settings → Change visibility
 - Or authenticate with GHCR:
-  ```bash
-  echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
-  ```
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+```
 
 ## 📝 Image Tags
 
 Images are tagged with:
+
 - `latest` - Most recent build from main branch
 - `main-<sha>` - Specific commit SHA
 - `main` - Latest from main branch
 
 ## 🔗 Links
 
-- **Upstream Repository**: https://github.com/ParisNeo/ollama_proxy_server
-- **This Fork**: https://github.com/ryan-haver/ollama_proxy_server
-- **GHCR Package**: https://github.com/ryan-haver/ollama_proxy_server/pkgs/container/ollama_proxy_server
+- **Upstream Repository**: [ParisNeo/ollama_proxy_server](https://github.com/ParisNeo/ollama_proxy_server)
+- **This Fork**: [ryan-haver/ollama_proxy_server](https://github.com/ryan-haver/ollama_proxy_server)
+- **GHCR Package**: [ghcr.io/ryan-haver/ollama_proxy_server](https://github.com/ryan-haver/ollama_proxy_server/pkgs/container/ollama_proxy_server)
