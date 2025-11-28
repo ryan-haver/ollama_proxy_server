@@ -48,4 +48,4 @@ EXPOSE 8080
 
 # Command to run the application using our custom Gunicorn config file.
 # This ensures structured JSON logging is used in production.
-CMD ["gunicorn", "-c", "./gunicorn_conf.py", "app.main:app"]
+CMD ["gunicorn", "-c", "/home/app/gunicorn_conf.py", "app.main:app"]
