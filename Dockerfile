@@ -29,8 +29,9 @@ COPY ./app ./app
 COPY gunicorn_conf.py .
 
 # Allow PUID/PGID to be passed as build args (for Unraid compatibility)
-ARG PUID=1000
-ARG PGID=1000
+# Default to 99:100 which is standard for Unraid
+ARG PUID=99
+ARG PGID=100
 
 # Create user and group with configurable UID/GID
 RUN addgroup --gid ${PGID} --system app && \
