@@ -136,6 +136,94 @@ docker run -d \
 id <username>
 ```
 
+#### Complete Unraid Environment Variables
+
+**Required (Must Change):**
+- `PUID` - User ID (default: `99` for nobody)
+- `PGID` - Group ID (default: `100` for users)
+- `ADMIN_PASSWORD` - Admin login password (**change from default!**)
+- `SECRET_KEY` - Session encryption key (generate with `openssl rand -hex 32`)
+
+**Optional (Have Defaults):**
+- `ADMIN_USER` - Admin username (default: `admin`)
+- `PROXY_PORT` - Internal container port (default: `8080`)
+- `LOG_LEVEL` - Logging level (default: `info`, options: `debug`, `info`, `warning`, `error`, `critical`)
+- `DATABASE_URL` - Database connection (default: `sqlite+aiosqlite:///./ollama_proxy.db`)
+
+#### Unraid Template Example
+
+**Minimal Configuration (Recommended):**
+```
+Name: ollama-proxy
+Repository: ghcr.io/ryan-haver/ollama_proxy_server:latest
+Network Type: Bridge
+
+Port Mappings:
+  Container Port: 8080 -> Host Port: 8080
+
+Path Mappings:
+  Container Path: /home/app -> Host Path: /mnt/user/appdata/ollama-proxy
+
+Environment Variables:
+  PUID=99
+  PGID=100
+  ADMIN_PASSWORD=your-secure-password
+  SECRET_KEY=your-generated-secret-key
+```
+
+**Full Configuration (All Options):**
+```
+Name: ollama-proxy
+Repository: ghcr.io/ryan-haver/ollama_proxy_server:latest
+Network Type: Bridge
+
+Port Mappings:
+  Container Port: 8080 -> Host Port: 8080
+
+Path Mappings:
+  Container Path: /home/app -> Host Path: /mnt/user/appdata/ollama-proxy
+
+Environment Variables:
+  PUID=99
+  PGID=100
+  ADMIN_USER=admin
+  ADMIN_PASSWORD=your-secure-password
+  SECRET_KEY=your-generated-secret-key
+  PROXY_PORT=8080
+  LOG_LEVEL=info
+  DATABASE_URL=sqlite+aiosqlite:///./ollama_proxy.db
+```
+
+#### Database Configuration
+
+**SQLite (Default - No External Database Needed):**
+
+The application uses SQLite by default, which stores everything in a single file at `/home/app/ollama_proxy.db`. This is perfect for most use cases and requires no additional setup.
+
+✅ **Use SQLite When:**
+- Single server deployment
+- Small to medium workload
+- Simple setup preferred
+- Testing or home use
+- Fewer than 50 concurrent users
+
+**PostgreSQL (Optional - For High Traffic):**
+
+Only needed for high-concurrency production environments.
+
+```yaml
+# Example with PostgreSQL
+DATABASE_URL=postgresql+asyncpg://user:password@postgres-host:5432/ollama_proxy
+```
+
+⚠️ **Use PostgreSQL When:**
+- High concurrent users (50+)
+- Production multi-server setup
+- Very high traffic
+- Need advanced database features
+
+**For Most Unraid Users:** Skip the `DATABASE_URL` variable entirely and use the default SQLite!
+
 ## 🔐 Security Best Practices
 
 ### Generate a Secure SECRET_KEY

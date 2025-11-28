@@ -37,7 +37,7 @@ RUN addgroup --gid ${PGID} --system app && \
     adduser --uid ${PUID} --system --group app
 
 # Create runtime directories and set ownership
-RUN mkdir -p .ssl benchmarks app/static/uploads && \
+RUN mkdir -p .ssl benchmarks app/static/uploads data && \
     chown -R app:app /home/app
 
 # Switch to non-root user

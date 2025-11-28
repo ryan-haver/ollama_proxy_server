@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # --- Bootstrap Settings ---
     # These are the only settings read from the .env file.
-    DATABASE_URL: str = "sqlite+aiosqlite:///./ollama_proxy.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:////home/app/data/ollama_proxy.db"
     ADMIN_USER: str = "admin"
     ADMIN_PASSWORD: str = "changeme"
     PROXY_PORT: int = 8080
