@@ -1,5 +1,5 @@
-# --- Build Stage ---
-FROM python:3.13-slim AS builder
+# Single-stage production build
+FROM python:3.13-slim
 
 # Set working directory
 WORKDIR /app
